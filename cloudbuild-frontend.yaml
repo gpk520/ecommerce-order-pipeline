@@ -1,0 +1,54 @@
+steps:
+  # Install dependencies
+  - name: "gcr.io/cloud-builders/npm"
+    dir: "frontend"
+    args: ["ci"]
+
+  # Run tests (optional)
+  - name: "gcr.io/cloud-builders/npm"
+    dir: "frontend"
+    args: ["run", "test", "--", "--watch=false", "--no-cache"]
+
+  # Build frontend container
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/frontend",
+        "./frontend"
+      ]
+
+  # Trivy scan
+  - name: "gcr.io/aquasec/trivy"
+    entrypoint: "trivy"
+    args:
+      [
+        "image",
+        "--exit-code", "1",
+        "--severity", "HIGH,CRITICAL",
+        "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/frontend"
+      ]
+
+  # Push to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/frontend"
+      ]
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "run", "deploy", "frontend-ui",
+        "--image", "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/frontend",
+        "--region", "us-central1",
+        "--platform", "managed",
+        "--allow-unauthenticated"
+      ]
+
+images:
+  - "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/frontend"
+

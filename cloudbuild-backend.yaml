@@ -1,0 +1,45 @@
+steps:
+  # Step 1: Build backend container
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/backend",
+        "./backend"
+      ]
+
+  # Step 2: Security scan using Trivy (fail on HIGH/CRITICAL)
+  - name: "gcr.io/aquasec/trivy"
+    entrypoint: "trivy"
+    args:
+      [
+        "image",
+        "--exit-code", "1",
+        "--severity", "HIGH,CRITICAL",
+        "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/backend"
+      ]
+
+  # Step 3: Push image to Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/backend"
+      ]
+
+  # Step 4: Deploy to Cloud Run (order-api)
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "run", "deploy", "order-api",
+        "--image", "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/backend",
+        "--region", "us-central1",
+        "--platform", "managed",
+        "--allow-unauthenticated",
+        "--set-env-vars", "ORDERS_TOPIC=orders-created"
+      ]
+
+images:
+  - "us-central1-docker.pkg.dev/river-semiotics-473414-i7/ecom-repo/backend"
+
